@@ -321,15 +321,6 @@ config MOUSE_AVAGOTECH_A320
 endmenu
 # endif
 
-#lenovo IQS128 cap-sensor kconfig defined here
-config IQS128_CAPSENSOR
-       #tristate "Azoteq SAR protection sensors IQS128"
-       bool "Azoteq SAR protection sensors IQS128"
-       default y
-       ---help---
-	 Enables support for Azoteq SAR protection sensor IQS128.
-
-
 # Nand
 menuconfig MTK_MTD_NAND # MTD_NAND_MT6516
         tristate "MediaTek Nand Support"

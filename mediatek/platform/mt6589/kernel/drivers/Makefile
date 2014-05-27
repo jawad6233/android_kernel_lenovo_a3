@@ -47,12 +47,9 @@ obj-$(CONFIG_THERMAL) += thermal/
 obj-$(CONFIG_MTK_ETM) += mt_etm/
 obj-y   += cpu_stress/
 
-#pengli add
-obj-y	+= capsensor/ 
+
 
 ifeq ($(HAVE_CMMB_FEATURE),yes)
 obj-m += cmmbdrv/
 endif
-#ifeq ($(LENOVO_HALL_SENSOR_SUPPORT),yes)
-obj-y   += hall/
-#endif
+
