@@ -112,8 +112,6 @@ typedef enum
     MTK_FB_FORMAT_ARGB8888 = MAKE_MTK_FB_FORMAT_ID(4, 4),
     MTK_FB_FORMAT_ABGR8888 = MAKE_MTK_FB_FORMAT_ID(5, 4),
 	MTK_FB_FORMAT_YUV422   = MAKE_MTK_FB_FORMAT_ID(6, 2),
-	MTK_FB_FORMAT_XRGB8888 = MAKE_MTK_FB_FORMAT_ID(7, 4),
-	MTK_FB_FORMAT_XBGR8888 = MAKE_MTK_FB_FORMAT_ID(8, 4),
     MTK_FB_FORMAT_BPP_MASK = 0xFF,
 } MTK_FB_FORMAT;
 
@@ -197,9 +195,6 @@ struct fb_overlay_layer {
 	unsigned int isTdshp;  // set to 1, will go through tdshp first, then layer blending, then to color
 
     int next_buff_idx;
-    int identity;
-    int connected_type;
-    unsigned int security;
 };
 
 struct fb_overlay_buffer_info{
@@ -209,18 +204,9 @@ struct fb_overlay_buffer_info{
 
 struct fb_overlay_layer_info {
     unsigned int layer_id;
-    unsigned int curr_en;
-    unsigned int next_en;
-    unsigned int hw_en;
+    unsigned int layer_enabled;
     int curr_idx;
     int next_idx;
-    int hw_idx;
-    int curr_identity;
-    int next_identity;
-    int hw_identity;
-    int curr_conn_type;
-    int next_conn_type;
-    int hw_conn_type;
 };
 
 // --------------------------------------------------------------------------
@@ -265,7 +251,6 @@ enum mtkfb_state {
 typedef enum {
     MTKFB_LAYER_ENABLE_DIRTY = (1 << 0),
     MTKFB_LAYER_FORMAT_DIRTY = (1 << 1),
-    MTKFB_LAYER_SET_DIRTY    = (1 << 2),
 } MTKFB_LAYER_CONFIG_DIRTY;
 
 struct mtkfb_device {

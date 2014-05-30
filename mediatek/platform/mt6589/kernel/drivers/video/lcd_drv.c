@@ -1,72 +1,3 @@
-/* Copyright Statement:
- *
- * This software/firmware and related documentation ("MediaTek Software") are
- * protected under relevant copyright laws. The information contained herein
- * is confidential and proprietary to MediaTek Inc. and/or its licensors.
- * Without the prior written permission of MediaTek inc. and/or its licensors,
- * any reproduction, modification, use or disclosure of MediaTek Software,
- * and information contained herein, in whole or in part, shall be strictly prohibited.
- */
-/* MediaTek Inc. (C) 2010. All rights reserved.
- *
- * BY OPENING THIS FILE, RECEIVER HEREBY UNEQUIVOCALLY ACKNOWLEDGES AND AGREES
- * THAT THE SOFTWARE/FIRMWARE AND ITS DOCUMENTATIONS ("MEDIATEK SOFTWARE")
- * RECEIVED FROM MEDIATEK AND/OR ITS REPRESENTATIVES ARE PROVIDED TO RECEIVER ON
- * AN "AS-IS" BASIS ONLY. MEDIATEK EXPRESSLY DISCLAIMS ANY AND ALL WARRANTIES,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR NONINFRINGEMENT.
- * NEITHER DOES MEDIATEK PROVIDE ANY WARRANTY WHATSOEVER WITH RESPECT TO THE
- * SOFTWARE OF ANY THIRD PARTY WHICH MAY BE USED BY, INCORPORATED IN, OR
- * SUPPLIED WITH THE MEDIATEK SOFTWARE, AND RECEIVER AGREES TO LOOK ONLY TO SUCH
- * THIRD PARTY FOR ANY WARRANTY CLAIM RELATING THERETO. RECEIVER EXPRESSLY ACKNOWLEDGES
- * THAT IT IS RECEIVER'S SOLE RESPONSIBILITY TO OBTAIN FROM ANY THIRD PARTY ALL PROPER LICENSES
- * CONTAINED IN MEDIATEK SOFTWARE. MEDIATEK SHALL ALSO NOT BE RESPONSIBLE FOR ANY MEDIATEK
- * SOFTWARE RELEASES MADE TO RECEIVER'S SPECIFICATION OR TO CONFORM TO A PARTICULAR
- * STANDARD OR OPEN FORUM. RECEIVER'S SOLE AND EXCLUSIVE REMEDY AND MEDIATEK'S ENTIRE AND
- * CUMULATIVE LIABILITY WITH RESPECT TO THE MEDIATEK SOFTWARE RELEASED HEREUNDER WILL BE,
- * AT MEDIATEK'S OPTION, TO REVISE OR REPLACE THE MEDIATEK SOFTWARE AT ISSUE,
- * OR REFUND ANY SOFTWARE LICENSE FEES OR SERVICE CHARGE PAID BY RECEIVER TO
- * MEDIATEK FOR SUCH MEDIATEK SOFTWARE AT ISSUE.
- *
- * The following software/firmware and/or related documentation ("MediaTek Software")
- * have been modified by MediaTek Inc. All revisions are subject to any receiver's
- * applicable license agreements with MediaTek Inc.
- */
-
-/*****************************************************************************
-*  Copyright Statement:
-*  --------------------
-*  This software is protected by Copyright and the information contained
-*  herein is confidential. The software may not be copied and the information
-*  contained herein may not be used or disclosed except with the written
-*  permission of MediaTek Inc. (C) 2008
-*
-*  BY OPENING THIS FILE, BUYER HEREBY UNEQUIVOCALLY ACKNOWLEDGES AND AGREES
-*  THAT THE SOFTWARE/FIRMWARE AND ITS DOCUMENTATIONS ("MEDIATEK SOFTWARE")
-*  RECEIVED FROM MEDIATEK AND/OR ITS REPRESENTATIVES ARE PROVIDED TO BUYER ON
-*  AN "AS-IS" BASIS ONLY. MEDIATEK EXPRESSLY DISCLAIMS ANY AND ALL WARRANTIES,
-*  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
-*  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR NONINFRINGEMENT.
-*  NEITHER DOES MEDIATEK PROVIDE ANY WARRANTY WHATSOEVER WITH RESPECT TO THE
-*  SOFTWARE OF ANY THIRD PARTY WHICH MAY BE USED BY, INCORPORATED IN, OR
-*  SUPPLIED WITH THE MEDIATEK SOFTWARE, AND BUYER AGREES TO LOOK ONLY TO SUCH
-*  THIRD PARTY FOR ANY WARRANTY CLAIM RELATING THERETO. MEDIATEK SHALL ALSO
-*  NOT BE RESPONSIBLE FOR ANY MEDIATEK SOFTWARE RELEASES MADE TO BUYER'S
-*  SPECIFICATION OR TO CONFORM TO A PARTICULAR STANDARD OR OPEN FORUM.
-*
-*  BUYER'S SOLE AND EXCLUSIVE REMEDY AND MEDIATEK'S ENTIRE AND CUMULATIVE
-*  LIABILITY WITH RESPECT TO THE MEDIATEK SOFTWARE RELEASED HEREUNDER WILL BE,
-*  AT MEDIATEK'S OPTION, TO REVISE OR REPLACE THE MEDIATEK SOFTWARE AT ISSUE,
-*  OR REFUND ANY SOFTWARE LICENSE FEES OR SERVICE CHARGE PAID BY BUYER TO
-*  MEDIATEK FOR SUCH MEDIATEK SOFTWARE AT ISSUE.
-*
-*  THE TRANSACTION CONTEMPLATED HEREUNDER SHALL BE CONSTRUED IN ACCORDANCE
-*  WITH THE LAWS OF THE STATE OF CALIFORNIA, USA, EXCLUDING ITS CONFLICT OF
-*  LAWS PRINCIPLES.  ANY DISPUTES, CONTROVERSIES OR CLAIMS ARISING THEREOF AND
-*  RELATED THERETO SHALL BE SETTLED BY ARBITRATION IN SAN FRANCISCO, CA, UNDER
-*  THE RULES OF THE INTERNATIONAL CHAMBER OF COMMERCE (ICC).
-*
-*****************************************************************************/
 #if defined(BUILD_UBOOT)
 #define ENABLE_LCD_INTERRUPT 0 
 
@@ -88,7 +19,7 @@
 #include <linux/string.h>
 #include <disp_drv_log.h>
 #include <linux/dma-mapping.h>
-#include <disp_drv_platform.h>
+#include "disp_drv_platform.h"
 
 #include <linux/hrtimer.h>
 
@@ -516,8 +447,7 @@ LCD_STATUS LCD_Init(void)
 	LCD_OUTREG32(&LCD_REG->SYNC_CNT, 0x1);
 
     ASSERT(ret == LCD_STATUS_OK);
-//	MASKREG32(DISPSYS_BASE + 0x60, 0x1, 0x0);
-
+	MASKREG32(DISPSYS_BASE + 0x60, 0x1, 0x0);
 #if ENABLE_LCD_INTERRUPT
     if (request_irq(MT6589_DISP_DBI_IRQ_ID,
         _LCD_InterruptHandler, IRQF_TRIGGER_LOW, "mtklcd", NULL) < 0)
@@ -1005,31 +935,6 @@ UINT32 LCD_LayerGetInfo(LCD_LAYER_ID id, UINT32 *enabled, INT32 *curr_idx, INT32
     return LCD_STATUS_OK;
 }
 
-UINT32 LCD_DisableAllLayer(UINT32 vram_start, UINT32 vram_end)
-{
-    int id;
-    int layer_enable = 0;
-    DISP_LOG_PRINT(ANDROID_LOG_INFO, "LCD", "%s(%d, %d)\n", __func__, vram_start, vram_end);
-
-    for (id = 0; id < DDP_OVL_LAYER_MUN; id++) {
-        if (cached_layer_config[id].layer_en == 0)
-            continue;
-
-        if (cached_layer_config[id].addr >= vram_start &&
-            cached_layer_config[id].addr < vram_end)
-        {
-            DISP_LOG_PRINT(ANDROID_LOG_INFO, "LCD", "  not disable(%d)\n", id);
-            layer_enable |= (1 << id);
-            continue;
-        }
-
-        DISP_LOG_PRINT(ANDROID_LOG_INFO, "LCD", "  disable(%d)\n", id);
-        cached_layer_config[id].layer_en = 0;
-        cached_layer_config[id].isDirty = true;
-    }
-    return layer_enable;
-}
-
 UINT32 LCD_LayerGetAddress(LCD_LAYER_ID id)
 {
     return cached_layer_config[id].addr;
@@ -1038,23 +943,23 @@ UINT32 LCD_LayerGetAddress(LCD_LAYER_ID id)
 
 LCD_STATUS LCD_LayerSetSize(LCD_LAYER_ID id, UINT32 width, UINT32 height)
 {   
-	//cached_layer_config[id].src_w = width;
-	//cached_layer_config[id].src_h = height;
+	cached_layer_config[id].w = width;
+	cached_layer_config[id].h = height;
     return LCD_STATUS_OK;
 }
 
 
 LCD_STATUS LCD_LayerSetPitch(LCD_LAYER_ID id, UINT32 pitch)
 {
-	cached_layer_config[id].src_pitch = pitch;
+	cached_layer_config[id].pitch = pitch;
     return LCD_STATUS_OK;
 }
 
 
 LCD_STATUS LCD_LayerSetOffset(LCD_LAYER_ID id, UINT32 x, UINT32 y)
 {
-	//cached_layer_config[id].dst_x = x;
-	//cached_layer_config[id].dst_y = y;
+	cached_layer_config[id].x = x;
+	cached_layer_config[id].y = y;
     return LCD_STATUS_OK;
 }
 
@@ -1457,11 +1362,11 @@ LCD_STATUS LCD_Dump_Layer_Info()
             cached_layer_config[i].source,
             cached_layer_config[i].fmt,
             cached_layer_config[i].addr, 
-            cached_layer_config[i].dst_x,
-            cached_layer_config[i].dst_y,
-            cached_layer_config[i].dst_w,
-            cached_layer_config[i].dst_h,
-            cached_layer_config[i].src_pitch,
+            cached_layer_config[i].x, 
+            cached_layer_config[i].y, 
+            cached_layer_config[i].w, 
+            cached_layer_config[i].h,
+            cached_layer_config[i].pitch,
             cached_layer_config[i].keyEn,
             cached_layer_config[i].key, 
             cached_layer_config[i].aen, 
@@ -1529,10 +1434,6 @@ LCD_STATUS LCD_StartTransfer(BOOL blocking, BOOL isMutexLocked)
     if (!isMutexLocked)
         disp_path_get_mutex();
     mutex_lock(&OverlaySettingMutex);
-    // isMutexLocked=false means it is the first time of DBI update after init or late resume.
-    // Layer config was not applied in config update thread.
-    // So need to config overlay here.
-    if (!isMutexLocked)
     LCD_ConfigOVL();
 
 //	_WaitForEngineNotBusy();
@@ -1616,11 +1517,11 @@ void LCD_DumpLayer()
 	    cached_layer_config[i].source,   // data source (0=memory)
 	    cached_layer_config[i].fmt, 
 	    cached_layer_config[i].addr, // addr 
-	    cached_layer_config[i].dst_x,  // x
-	    cached_layer_config[i].dst_y,  // y
-	    cached_layer_config[i].dst_w, // width
-	    cached_layer_config[i].dst_h, // height
-	    cached_layer_config[i].src_pitch, //pitch, pixel number
+	    cached_layer_config[i].x,  // x
+	    cached_layer_config[i].y,  // y
+	    cached_layer_config[i].w, // width
+	    cached_layer_config[i].h, // height
+	    cached_layer_config[i].pitch, //pitch, pixel number
 	    cached_layer_config[i].keyEn,  //color key
 	    cached_layer_config[i].key,  //color key
 	    cached_layer_config[i].aen, // alpha enable

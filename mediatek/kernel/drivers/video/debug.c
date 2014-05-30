@@ -5,7 +5,6 @@
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
 #include <linux/debugfs.h>
-#include <linux/wait.h>
 
 #include <disp_drv_platform.h>
 #include "disp_drv_log.h"
@@ -51,8 +50,6 @@ extern void mtkfb_log_enable(int enable);
 extern void disp_log_enable(int enable);
 extern void dbi_log_enable(int enable);
 extern void DSI_Enable_Log(bool enable);
-extern void Glitch_Enable_Log(bool enable);
-extern void Glitch_times(unsigned int times);
 extern void mtkfb_vsync_log_enable(int enable);
 extern void mtkfb_m4u_switch(bool enable);
 extern void mtkfb_m4u_dump(void);
@@ -65,21 +62,13 @@ extern void mtkfb_hang_test(bool en);
 extern void mtkfb_switch_normal_to_factory(void);
 extern void mtkfb_switch_factory_to_normal(void);
 
-extern unsigned int gCaptureLayerEnable;
-extern unsigned int gCaptureLayerDownX;
-extern unsigned int gCaptureLayerDownY;
-
-extern unsigned int gCaptureOvlThreadEnable;
+extern unsigned int bDebugDumpImage;
+extern unsigned int DebugDumpImageDownX;
+extern unsigned int DebugDumpImageDownY;
+extern unsigned int gCaptureThreadEnable;
 extern unsigned int gCaptureOvlDownX;
 extern unsigned int gCaptureOvlDownY;
-extern struct task_struct *captureovl_task;
-
-extern unsigned int gCaptureFBEnable;
-extern unsigned int gCaptureFBDownX;
-extern unsigned int gCaptureFBDownY;
-extern unsigned int gCaptureFBPeriod;
-extern struct task_struct *capturefb_task;
-extern struct wait_queue_head_t gCaptureFBWQ;
+extern struct task_struct *capture_task;
 
 #if defined (MTK_TVOUT_SUPPORT)
 bool capture_tv_buffer = false;
@@ -204,18 +193,7 @@ void init_mtkfb_mmp_events(void)
         MTKFB_MMP_Events.DSIIRQ = MMProfileRegisterEvent(MTKFB_MMP_Events.MTKFB, "DSIIrq");
         MTKFB_MMP_Events.WaitVSync = MMProfileRegisterEvent(MTKFB_MMP_Events.MTKFB, "WaitVSync");
         MTKFB_MMP_Events.LayerDump = MMProfileRegisterEvent(MTKFB_MMP_Events.MTKFB, "LayerDump");
-        MTKFB_MMP_Events.Layer[0] = MMProfileRegisterEvent(MTKFB_MMP_Events.LayerDump, "Layer0");
-        MTKFB_MMP_Events.Layer[1] = MMProfileRegisterEvent(MTKFB_MMP_Events.LayerDump, "Layer1");
-        MTKFB_MMP_Events.Layer[2] = MMProfileRegisterEvent(MTKFB_MMP_Events.LayerDump, "Layer2");
-        MTKFB_MMP_Events.Layer[3] = MMProfileRegisterEvent(MTKFB_MMP_Events.LayerDump, "Layer3");
         MTKFB_MMP_Events.OvlDump = MMProfileRegisterEvent(MTKFB_MMP_Events.MTKFB, "OvlDump");
-        MTKFB_MMP_Events.FBDump = MMProfileRegisterEvent(MTKFB_MMP_Events.MTKFB, "FBDump");
-        MTKFB_MMP_Events.DSIRead = MMProfileRegisterEvent(MTKFB_MMP_Events.MTKFB, "DSIRead");
-        MTKFB_MMP_Events.GetLayerInfo = MMProfileRegisterEvent(MTKFB_MMP_Events.MTKFB, "GetLayerInfo");
-        MTKFB_MMP_Events.LayerInfo[0] = MMProfileRegisterEvent(MTKFB_MMP_Events.GetLayerInfo, "LayerInfo0");
-        MTKFB_MMP_Events.LayerInfo[1] = MMProfileRegisterEvent(MTKFB_MMP_Events.GetLayerInfo, "LayerInfo1");
-        MTKFB_MMP_Events.LayerInfo[2] = MMProfileRegisterEvent(MTKFB_MMP_Events.GetLayerInfo, "LayerInfo2");
-        MTKFB_MMP_Events.LayerInfo[3] = MMProfileRegisterEvent(MTKFB_MMP_Events.GetLayerInfo, "LayerInfo3");
         MTKFB_MMP_Events.Debug = MMProfileRegisterEvent(MTKFB_MMP_Events.MTKFB, "Debug");
         MMProfileEnableEventRecursive(MTKFB_MMP_Events.MTKFB, 1);
     }
@@ -492,20 +470,6 @@ static void process_dbg_opt(const char *opt)
         DISP_PowerEnable(TRUE);
         DISP_PanelEnable(TRUE);
     }
-//<2013/02/10-21805-stevenchen, Add ADB commands to turn on/off LCM.
-    else if (0 == strncmp(opt, "poweron", 7))
-    {
-        DISP_PowerEnable(TRUE);
-        DISP_PanelEnable(TRUE);
-	DISP_PanelOnOff(TRUE);
-    }
-    else if (0 == strncmp(opt, "poweroff", 8))
-    {
-        DISP_PowerEnable(FALSE);
-        DISP_PanelEnable(FALSE);
-	DISP_PanelOnOff(FALSE);
-    }
-//>2013/02/10-21805-stevenchen
     else if (0 == strncmp(opt, "lcm:", 4))
     {
         if (0 == strncmp(opt + 4, "on", 2)) {
@@ -838,41 +802,7 @@ static void process_dbg_opt(const char *opt)
         }
     }
 
-	else if (0 == strncmp(opt, "glitchlog:", 10))
-    {
-        if (0 == strncmp(opt + 10, "on", 2)) {
-            Glitch_Enable_Log(true);
-        } else if (0 == strncmp(opt + 10, "off", 3)) {
-            Glitch_Enable_Log(false);
-        } else {
-            goto Error;
-        }
-    }
-	
-	else if(0 == strncmp(opt, "glitch_times:", 13))
-	{
-		char *p = (char *)opt + 13;
-		unsigned int level = (unsigned int) simple_strtoul(p, &p, 10);
-		Glitch_times(level);
-	}
-	else if (0 == strncmp(opt, "glitchlog:", 10))
-    {
-        if (0 == strncmp(opt + 10, "on", 2)) {
-            Glitch_Enable_Log(true);
-        } else if (0 == strncmp(opt + 10, "off", 3)) {
-            Glitch_Enable_Log(false);
-        } else {
-            goto Error;
-        }
-    }
-	
-	else if(0 == strncmp(opt, "glitch_times:", 13))
-	{
-		char *p = (char *)opt + 13;
-		unsigned int level = (unsigned int) simple_strtoul(p, &p, 10);
-		Glitch_times(level);
-	}
-	else if (0 == strncmp(opt, "mtkfb_vsynclog:", 15))
+    else if (0 == strncmp(opt, "mtkfb_vsynclog:", 15))
     {
         if (0 == strncmp(opt + 15, "on", 2)) {
             mtkfb_vsync_log_enable(true);
@@ -992,13 +922,13 @@ static void process_dbg_opt(const char *opt)
         if (0 == strncmp(opt + 11, "on", 2))
         {
             char *p = (char *)opt + 14;
-            gCaptureLayerDownX = simple_strtoul(p, &p, 10);
-            gCaptureLayerDownY = simple_strtoul(p+1, &p, 10);
-            gCaptureLayerEnable = 1;
+            DebugDumpImageDownX = simple_strtoul(p, &p, 10);
+            DebugDumpImageDownY = simple_strtoul(p+1, &p, 10);
+            bDebugDumpImage = 1;
         }
         else if (0 == strncmp(opt + 11, "off", 3))
         {
-            gCaptureLayerEnable = 0;
+            bDebugDumpImage = 0;
         }
     }
     else if (0 == strncmp(opt, "dump_ovl:", 9))
@@ -1008,29 +938,23 @@ static void process_dbg_opt(const char *opt)
             char *p = (char *)opt + 12;
             gCaptureOvlDownX = simple_strtoul(p, &p, 10);
             gCaptureOvlDownY = simple_strtoul(p+1, &p, 10);
-            gCaptureOvlThreadEnable = 1;
-			wake_up_process(captureovl_task);
+            gCaptureThreadEnable = 1;
+			wake_up_process(capture_task);
         }
         else if (0 == strncmp(opt + 9, "off", 3))
         {
-            gCaptureOvlThreadEnable = 0;
-        }
-    }
-    else if (0 == strncmp(opt, "dump_fb:", 8))
-    {
-        if (0 == strncmp(opt + 8, "on", 2))
-        {
-            char *p = (char *)opt + 11;
-            gCaptureFBDownX = simple_strtoul(p, &p, 10);
-            gCaptureFBDownY = simple_strtoul(p+1, &p, 10);
-            gCaptureFBPeriod = simple_strtoul(p+1, &p, 10);
-            gCaptureFBEnable = 1;
-			wake_up_interruptible(&gCaptureFBWQ);
-        }
-        else if (0 == strncmp(opt + 8, "off", 3))
-        {
-            gCaptureFBEnable = 0;
+            gCaptureThreadEnable = 0;
         }   
+    }
+	else if (0 == strncmp(opt, "dsir:", 5))
+    {
+        char *p = (char *)opt + 5;
+        unsigned int addr = (unsigned int) simple_strtoul(p, &p, 16);
+		unsigned char buffer[2];
+				
+		DSI_dcs_read_lcm_reg_v2(addr, buffer, 2);
+
+        DISP_LOG_PRINT(ANDROID_LOG_INFO, "DBG", "DSI Read register 0x%08x: 0x%08x\n", addr, buffer[0]);
     }
     else
 	{
@@ -1062,10 +986,6 @@ static void process_dbg_cmd(char *cmd)
 // ---------------------------------------------------------------------------
 
 struct dentry *mtkfb_dbgfs = NULL;
-//<2013/02/26-22200-stevenchen, Add adb shell cat command to turn on/off LCM.
-struct dentry *mtkfb_dbglcdon = NULL;
-struct dentry *mtkfb_dbglcdoff = NULL;
-//>2013/02/26-22200-stevenchen
 
 
 static ssize_t debug_open(struct inode *inode, struct file *file)
@@ -1074,19 +994,6 @@ static ssize_t debug_open(struct inode *inode, struct file *file)
     return 0;
 }
 
-//<2013/02/26-22200-stevenchen, Add adb shell cat command to turn on/off LCM.
-static ssize_t debug_lcdon_open(struct inode *inode, struct file *file)
-{
-    file->private_data = inode->i_private;
-    return 0;
-}
-
-static ssize_t debug_lcdoff_open(struct inode *inode, struct file *file)
-{
-    file->private_data = inode->i_private;
-    return 0;
-}
-//>2013/02/26-22200-stevenchen
 
 static char debug_buffer[2048];
 
@@ -1102,29 +1009,6 @@ static ssize_t debug_read(struct file *file,
     return simple_read_from_buffer(ubuf, count, ppos, debug_buffer, n);
 }
 
-//<2013/04/12-23797-stevenchen, [Pelican][drv] Fix the adb command of turning on/off LCM.
-//<2013/02/26-22200-stevenchen, Add adb shell cat command to turn on/off LCM.
-static void debug_lcdon_read(struct file *file,
-                          char __user *ubuf, size_t count, loff_t *ppos)
-{
-	DISP_PowerEnable(TRUE);
-	//DISP_PanelEnable(TRUE);
-	DISP_PanelOnOff(TRUE);
-
-	//<2013/04/15-23830-stevenchen, [Pelican][drv] Fix the adb command of turning on/off LCM.
-	DISP_UpdateScreen(0, 0, DISP_GetScreenWidth(), DISP_GetScreenHeight());
-	//>2013/04/15-23830-stevenchen
-}
-
-static void debug_lcdoff_read(struct file *file,
-                          char __user *ubuf, size_t count, loff_t *ppos)
-{
-	//DISP_PanelEnable(FALSE);
-	DISP_PanelOnOff(FALSE);
-        DISP_PowerEnable(FALSE);	
-}
-//>2013/02/26-22200-stevenchen
-//>2013/04/12-23797-stevenchen
 
 static ssize_t debug_write(struct file *file,
                            const char __user *ubuf, size_t count, loff_t *ppos)
@@ -1153,17 +1037,6 @@ static struct file_operations debug_fops = {
     .write = debug_write,
 	.open  = debug_open,
 };
-//<2013/02/26-22200-stevenchen, Add adb shell cat command to turn on/off LCM.
-static struct file_operations debug_lcdon_fops = {
-	.read  = debug_lcdon_read,
-	.open  = debug_lcdon_open,
-};
-
-static struct file_operations debug_lcdoff_fops = {
-	.read  = debug_lcdoff_read,
-	.open  = debug_lcdoff_open,
-};
-//>2013/02/26-22200-stevenchen
 
 #ifdef MTKFB_DEBUG_FS_CAPTURE_LAYER_CONTENT_SUPPORT
 
@@ -1287,14 +1160,6 @@ void DBG_Init(void)
 {
     mtkfb_dbgfs = debugfs_create_file("mtkfb",
         S_IFREG|S_IRUGO, NULL, (void *)0, &debug_fops);
-
-//Steven start
-    mtkfb_dbglcdon = debugfs_create_file("mtkfb_lcdon",
-        S_IRUGO, NULL, (void *)0, &debug_lcdon_fops);
-
-    mtkfb_dbglcdoff = debugfs_create_file("mtkfb_lcdoff",
-        S_IRUGO, NULL, (void *)0, &debug_lcdoff_fops);
-//Steven end
 
     memset(&dbg_opt, sizeof(dbg_opt), 0);
 	memset(&fps, sizeof(fps), 0);
